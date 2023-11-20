@@ -110,7 +110,7 @@ for filename in html_files:
     # Beautiful Soup verwenden, um den HTML-Inhalt zu analysieren
     soup = BeautifulSoup(html_content, 'html.parser')
     
-    # Alle Links mit der Klasse 'ds-recipe-card__link ds-teaser-link' extrahieren
+    # Alle Links mit der Klasse 'ds-recipe-card__link ds-teaser-link' extrahieren (Links zu den jeweiligen Rezepten)
     links = soup.select('.ds-recipe-card__link.ds-teaser-link')
 
         # Die gewünschten Links in einem String speichern
