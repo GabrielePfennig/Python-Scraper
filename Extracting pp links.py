@@ -32,7 +32,7 @@ soup = BeautifulSoup(html_content, 'html.parser')
 # Alle Links mit der Klasse 'sg-pill' extrahieren
 links_cat = soup.find_all('a', class_='sg-pill')
 
-# Die gewünschten Links ausgeben
+# Die gewünschten Rezepte-Links ausgeben
 for link_cat in links_cat:
     href_cat = link_cat['href']
    
@@ -46,7 +46,7 @@ for href_cat in href_cats:
     href_catend = 't' + split_result[1]
     href_catsends.append(href_catend)
     print (href_catsends)
-#
+#WAS WIRD HIER GEMACHT: URLs für verschiedene Unterseiten erstellen und überprüfen, ob diese verfügbar sind??
 base_caturl = "https://www.chefkoch.de/rs/s"
 num_pages = 5  # Hier die gewünschte Anzahl eintragen
 
@@ -65,7 +65,7 @@ for url in category_links:
 
 
 
-# Ordner erstellen, um HTML-Dateien zu speichern
+# Ordner erstellen, um HTML-Dateien bzw. Unterseiten zu speichern
 output_folder = "C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/06_Webscraping & Textual Analysis in Python/04_Project/category_pages"
 os.makedirs(output_folder, exist_ok=True)
 
@@ -115,6 +115,8 @@ for filename in html_files:
 
         # Die gewünschten Links in einem String speichern
     recipie_links = f"Links in {filename}:\n"
+
+        #Ausgabe der extrahierten Rezept-Links
     
     for link in links:
         href_rec = link['href']
