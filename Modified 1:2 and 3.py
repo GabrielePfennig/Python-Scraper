@@ -50,7 +50,7 @@ for href_cat in href_cats:
     print (href_catsends)
 #
 base_caturl = "https://www.chefkoch.de/rs/s"
-num_pages = 5  # Hier die gewünschte Anzahl eintragen
+num_pages = 5  # Hier die gewünschte Anzahl eintragen  #########Leave #No. of recipe pages as a restrictor or use a loop instead#######
 
 base_caturls = [f"{base_caturl}{page_number}" for page_number in range(num_pages)]
 
