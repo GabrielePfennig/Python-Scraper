@@ -121,6 +121,8 @@ for filename in html_files:
     for link in links:
         href_rec = link['href']
         recipie_links += f"{href_rec}\n"
+
+            #Hinzufügen einer Trennlinie und Zeilenumbrüche um die einzelnen Rezeptlinks voneinander zu trennen und die Ausgabe übersichtlicher zu gestalten
     
     recipie_links += "\n" + "-"*50 + "\n"
     
