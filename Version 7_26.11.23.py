@@ -132,6 +132,21 @@ print(recipe_links)
 import pandas as pd
 import re
 
+recipe_names = []
+preptimes = []
+difficulties = [] 
+calories_list = [] 
+rating_avgs = [] 
+rating_counts = [] 
+servings_list = []
+quantities = []
+quantities_list = [] 
+ingredients_list = [] 
+nutrition_values_list = []
+
+for recipe_link in recipe_links:
+    # Anfrage an die Rezeptseite senden 
+    response_recipe = requests.get(recipe_link, timeout=120)
 soup = BeautifulSoup(response_recipe.content)
 
 # Sicherstellen, dass die Anfrage erfolgreich war (Statuscode 200)
