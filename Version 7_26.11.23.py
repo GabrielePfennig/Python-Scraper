@@ -13,120 +13,70 @@ import re
 from bs4 import BeautifulSoup
 import os
 
+# Base URL for category pages
+base_url = "https://www.chefkoch.de/rs/s{}/Rezepte.html"
 
-# importing the overview page 
-import requests
-link_cat = "https://www.chefkoch.de/rezepte/"
+# Counter for category pages
+count_cat = 0
+checked_urls = []  # List to store checked URLs
 
-response = requests.get(link_cat)
-#print(response)
-
-# Save to a text file (encoding has to be set to utf-8)
-with open('C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/06_Webscraping & Textual Analysis in Python/04_Project/overview.html', 'w', encoding="utf-8") as file:
-    file.write(response.text)
-    
-with open('C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/06_Webscraping & Textual Analysis in Python/04_Project/overview.html', 'r', encoding='utf-8') as file:
-    # Lese den Inhalt der HTML-Datei
-    html_content = file.read()
-
-# Verwende BeautifulSoup, um das HTML zu analysieren
-soup = BeautifulSoup(html_content, 'html.parser')
-
-# Alle Rezepte-Links mit der Klasse 'sg-pill' extrahieren
-links_cat = soup.find_all('a', class_='sg-pill')
-
-# Die gewünschten Rezepte-Links ausgeben
-for link_cat in links_cat:
-    href_cat = link_cat['href']
-   
-# Liste der href-Werte erstellen
-href_cats = [link_cat['href'] for link_cat in links_cat]
-
-href_catsends = []
-
-for href_cat in href_cats:
-    split_result = href_cat.split('t', 1)
-    href_catend = 't' + split_result[1]
-    href_catsends.append(href_catend)
-    print (href_catsends)
-#
-base_caturl = "https://www.chefkoch.de/rs/s"
-num_pages = 1  # Hier die gewünschte Anzahl eintragen  #########Leave #No. of recipe pages as a restrictor or use a loop instead#######
-
-base_caturls = [f"{base_caturl}{page_number}" for page_number in range(num_pages)]
-
-category_links = [f"{base_caturl}{href_catend}" for base_caturl in base_caturls for href_catend in href_catsends]
-
-for url in category_links:
-    response = requests.head(url)
-    if response.status_code == 200:
-        print(f"URL {url} is available.")
-        
-    elif response.status_code == 301 :
-         print(f"URL {url} is available.")
-         
-    else:
-        print(f"URL {url} is not available. Status code: {response.status_code}")
-
-     
-# Ordner erstellen, um HTML-Dateien zu speichern
-output_folder = "C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/06_Webscraping & Textual Analysis in Python/04_Project/category_pages"
-os.makedirs(output_folder, exist_ok=True)
-
-
-for url in category_links:
-    # Anfrage an die URL senden
+# Loop to check category pages until an unavailable page is encountered
+while True:
+    url = base_url.format(count_cat)
     response = requests.get(url)
 
-    # Sicherstellen, dass die Anfrage erfolgreich war (Statuscode 200)
-    if response.status_code == 200 or response.status_code == 301:
-        # HTML-Inhalt extrahieren
-        html_content = response.text
-        
-        # HTML-Dateiname aus der URL ableiten
-        filename = os.path.join(output_folder, f"{url.replace('https://www.chefkoch.de/rezepte/', '').replace('/', '_')}.html")
-
-        # HTML-Datei speichern
-        with open(filename, 'w', encoding='utf-8') as file:
-            file.write(html_content)
-
-        print(f"HTML von {url} wurde erfolgreich gespeichert.")
+    if response.status_code == 200:
+        print(f"URL {count_cat} is available.")
+        checked_urls.append(url)
+        count_cat += 1
     else:
-        print(f"Fehler beim Abrufen von {url}. Statuscode: {response.status_code}")
+        print(f"URL {count_cat} is not available. Stopping.")
+        break
 
+print("Checked URLs:")
+for checked_url in checked_urls:
+    print(checked_url)
 
-# Ordner, in dem die HTML-Dateien gespeichert sind
-output_folder = "C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/06_Webscraping & Textual Analysis in Python/04_Project/category_pages"
+# Extract and check links from the checked URLs
+count_rec = 0
+count_limit = 15  # Set the limit for the number of recipe links to extract
 
-# Liste der HTML-Dateien im Ordner abrufen
-html_files = [f for f in os.listdir(output_folder) if f.endswith(".html")]
-
-# Liste für die Rezeptlinks erstellen
 recipe_links = []
 
-# Durchlaufe alle HTML-Dateien
-for filename in html_files:
-    # Pfad zur HTML-Datei erstellen
-    file_path = os.path.join(output_folder, filename)
+# Loop through each checked URL to extract recipe links
+for checked_url in checked_urls:
+    response = requests.get(checked_url)
+    soup = BeautifulSoup(response.content, 'html.parser')
     
-    # HTML-Datei öffnen und den Inhalt lesen
-    with open(file_path, 'r', encoding='utf-8') as file:
-        html_content = file.read()
-    
-    # Beautiful Soup verwenden, um den HTML-Inhalt zu analysieren
-    soup = BeautifulSoup(html_content, 'html.parser')
-    
-    # Alle Links mit der Klasse 'ds-recipe-card__link ds-teaser-link' extrahieren (Links zu den bestimmten Rezepten)
+    # Select recipe links using BeautifulSoup
     links = soup.select('.ds-recipe-card__link.ds-teaser-link')
-   
-    # Rezeptlinks in der Liste hinzufügen
+
+    # Loop through each recipe link
     for link in links:
-        recipe_links.append(link['href'])
+        if count_rec >= count_limit:
+            print("Stopping loop. Count_rec reached {count_limit}.")
+            break
 
-print(recipe_links)
+        # Extract the href attribute from the link
+        recipe_link = link['href']
 
-        
- 
+        # Check the response status of the recipe link
+        recipe_response = requests.get(recipe_link)
+
+        if recipe_response.status_code == 200:
+            recipe_links.append(recipe_link)
+            count_rec += 1
+            print(f"Recipe link {count_rec} is available.")
+        else:
+            print(f"Recipe link {count_rec} is not available.")
+
+    if count_rec >= count_limit:
+        break
+
+print("\nRecipe Links:")
+for recipe_link in recipe_links:
+    print(recipe_links)
+
     
 ##--------------------------#Part 3----------------------------------------------
 import pandas as pd
