@@ -19,7 +19,7 @@ Created on Mon Nov 27 12:18:13 2023
 ##----------------------------#Part 1 and 2--------------------------------------
 
 from selenium import webdriver
-import re
+import requests
 from bs4 import BeautifulSoup
 import os
 
@@ -39,6 +39,11 @@ while True:
         print(f"URL {count_cat} is available.")
         checked_urls.append(url)
         count_cat += 1
+    elif response.status_code == 301:
+        print(f"URL {count_cat} is available.")
+        checked_urls.append(url)
+        count_cat += 1
+        
     else:
         print(f"URL {count_cat} is not available. Stopping.")
         break
@@ -49,7 +54,7 @@ for checked_url in checked_urls:
 
 # Extract and check links from the checked URLs
 count_rec = 0
-count_limit = 15  # Set the limit for the number of recipe links to extract
+count_limit = 150  # Set the limit for the number of recipe links to extract
 
 recipe_links = []
 
@@ -74,6 +79,10 @@ for checked_url in checked_urls:
         recipe_response = requests.get(recipe_link)
 
         if recipe_response.status_code == 200:
+            recipe_links.append(recipe_link)
+            count_rec += 1
+            print(f"Recipe link {count_rec} is available.")
+        elif response.status_code == 301 :
             recipe_links.append(recipe_link)
             count_rec += 1
             print(f"Recipe link {count_rec} is available.")
