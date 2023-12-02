@@ -18,83 +18,101 @@ Created on Mon Nov 27 12:18:13 2023
 
 ##----------------------------#Part 1 and 2--------------------------------------
 
-from selenium import webdriver
 import requests
 from bs4 import BeautifulSoup
-import os
+from urllib.parse import urlparse
 
-# Base URL for category pages
-base_url = "https://www.chefkoch.de/rs/s{}/Rezepte.html"
+url = "https://www.chefkoch.de/rezepte/"
 
-# Counter for category pages
-count_cat = 0
+# Fetch the HTML content of the website
+response = requests.get(url)
+html_content = response.text
+
+# Parse the HTML content with BeautifulSoup
+soup = BeautifulSoup(html_content, 'html.parser')
+
+# Find all 'a' tags with 'href' attribute in the specified div
+href_elements = soup.select('ul#recipe-tag-list a.sg-pill')
+
+# Extract the 'href' values
+href_values = [element['href'] for element in href_elements]
+
+# Iterate over pages and construct URLs
 checked_urls = []  # List to store checked URLs
 
-# Loop to check category pages until an unavailable page is encountered
-while True:
-    url = base_url.format(count_cat)
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        print(f"URL {count_cat} is available.")
-        checked_urls.append(url)
-        count_cat += 1
-    elif response.status_code == 301:
-        print(f"URL {count_cat} is available.")
-        checked_urls.append(url)
-        count_cat += 1
+for href_value in href_values:
+    for count_cat_inner in range(1):  # You can adjust the range of pages within the cathegories as needed for a full check insert 'len(href_values)'
+        cathe_base_url = 'https://www.chefkoch.de' + href_value.replace('0', '{}', 1)
+        url = cathe_base_url.format(count_cat_inner)
         
-    else:
-        print(f"URL {count_cat} is not available. Stopping.")
-        break
+        response = requests.get(url, allow_redirects=False)  # Disable automatic redirection
+        redirected_url = response.headers.get('Location', '')  # Use get method to avoid KeyError
+        original_parts = urlparse(url)
+        redirected_parts = urlparse(redirected_url)
+            
+        # Compare the parts up to the third "/"
+        original_path = original_parts.path.split('/')
+        redirected_path = redirected_parts.path.split('/')
 
-print("Checked URLs:")
+        if response.status_code == 301 and original_path[:3] != redirected_path[:3]:
+            print(f"URL {url} is redirected.")
+            break
+        
+        elif response.status_code == 301:
+            print(f"URL {url} is redirected and available.")
+            
+        elif response.status_code == 200:
+            print(f"URL {url} is available.")
+            checked_urls.append(url)
+        else:
+            print(f"URL {url} is not available. Stopping.")
+            break
+
+# Print the checked URLs
 for checked_url in checked_urls:
     print(checked_url)
 
-# Extract and check links from the checked URLs
-count_rec = 0
-count_limit = 150  # Set the limit for the number of recipe links to extract
 
-recipe_links = []
+count_limit = 1  # Set the limit for the number of recipe links to extract from each page in checked_urls
+
+recipe_links = []  # creating a List to store 
 
 # Loop through each checked URL to extract recipe links
 for checked_url in checked_urls:
     response = requests.get(checked_url)
     soup = BeautifulSoup(response.content, 'html.parser')
-    
+
     # Select recipe links using BeautifulSoup
     links = soup.select('.ds-recipe-card__link.ds-teaser-link')
-
+    count_rec = 0
     # Loop through each recipe link
     for link in links:
+        
         if count_rec >= count_limit:
-            print("Stopping loop. Count_rec reached 200.")
+            print(f"Stopping loop. Count_rec reached {count_limit}.")
             break
 
         # Extract the href attribute from the link
         recipe_link = link['href']
 
-        # Check the response status of the recipe link
-        recipe_response = requests.get(recipe_link)
+        # Check if the recipe link is not already in the set
+        if recipe_link not in recipe_links:
+            # Check the response status of the recipe link
+            recipe_response = requests.get(recipe_link)
 
-        if recipe_response.status_code == 200:
-            recipe_links.append(recipe_link)
-            count_rec += 1
-            print(f"Recipe link {count_rec} is available.")
-        elif response.status_code == 301 :
-            recipe_links.append(recipe_link)
-            count_rec += 1
-            print(f"Recipe link {count_rec} is available.")
-        else:
-            print(f"Recipe link {count_rec} is not available.")
+            if recipe_response.status_code == 200 or recipe_response.status_code == 301:
+                recipe_links.append(recipe_link)
+                count_rec += 1
+                print(f"Recipe link {recipe_link} is available.")
+            else:
+                print(f"Recipe link {recipe_link} is not available.")
 
-    if count_rec >= count_limit:
-        break
+        if count_rec >= count_limit:
+            break
 
 print("\nRecipe Links:")
 for recipe_link in recipe_links:
-    print(recipe_links)
+    print(recipe_link)
 
 
 ##--------------------------#Part 3----------------------------------------------
