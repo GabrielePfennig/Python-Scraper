@@ -6,132 +6,101 @@ Created on Mon Dec  4 13:33:12 2023
 @author: gabriele
 """
 
-from selenium import webdriver
-import re
-from bs4 import BeautifulSoup
-import os
-
-# Importing the overview page
 import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
-link_cat = "https://www.chefkoch.de/rezepte/"
+url = "https://www.chefkoch.de/rezepte/"
 
-response = requests.get(link_cat)
+# Fetch the HTML content of the website
+response = requests.get(url)
+html_content = response.text
 
-# Save to a text file (encoding has to be set to utf-8)
-with open("overview.html", "w", encoding="utf-8") as file:
-    file.write(response.text)
+# Parse the HTML content with BeautifulSoup
+soup = BeautifulSoup(html_content, 'html.parser')
 
-with open("overview.html", "r", encoding="utf-8") as file:
-    # Read the content of the HTML file
-    html_content = file.read()
+# Find all 'a' tags with 'href' attribute in the specified div
+href_elements = soup.select('ul#recipe-tag-list a.sg-pill')
 
-# Use BeautifulSoup to analyze HTML
-soup = BeautifulSoup(html_content, "html.parser")
+# Extract the 'href' values
+href_values = [element['href'] for element in href_elements]
 
-# Extract all recipe links with the class 'sg-pill'
-links_cat = soup.find_all("a", class_="sg-pill")
+# Iterate over pages and construct URLs
+checked_urls = []  # List to store checked URLs
 
-# Output the desired recipe links
-for link_cat in links_cat:
-    href_cat = link_cat["href"]
+for href_value in href_values:
+    for count_cat_inner in range(1):  # You can adjust the range of pages within the cathegories as needed for a full check insert 'len(href_values)'
+        cathe_base_url = 'https://www.chefkoch.de' + href_value.replace('0', '{}', 1)
+        url = cathe_base_url.format(count_cat_inner)
+        
+        response = requests.get(url, allow_redirects=False)  # Disable automatic redirection
+        redirected_url = response.headers.get('Location', '')  # Use get method to avoid KeyError
+        original_parts = urlparse(url)
+        redirected_parts = urlparse(redirected_url)
+            
+        # Compare the parts up to the third "/"
+        original_path = original_parts.path.split('/')
+        redirected_path = redirected_parts.path.split('/')
 
-# Create a list of href values
-href_cats = [link_cat["href"] for link_cat in links_cat]
+        if response.status_code == 301 and original_path[:3] != redirected_path[:3]:
+            print(f"URL {url} is redirected.")
+            break
+        
+        elif response.status_code == 301:
+            print(f"URL {url} is redirected and available.")
+            
+        elif response.status_code == 200:
+            print(f"URL {url} is available.")
+            checked_urls.append(url)
+        else:
+            print(f"URL {url} is not available. Stopping.")
+            break
 
-href_catsends = []
-
-for href_cat in href_cats:
-    split_result = href_cat.split("t", 1)
-    href_catend = "t" + split_result[1]
-    href_catsends.append(href_catend)
-    print(href_catsends)
-#
-base_caturl = "https://www.chefkoch.de/rs/s"
-num_pages = 1  # Enter the desired number here
-
-base_caturls = [f"{base_caturl}{page_number}" for page_number in range(num_pages)]
-
-category_links = [
-    f"{base_caturl}{href_catend}"
-    for base_caturl in base_caturls
-    for href_catend in href_catsends
-]
-
-for url in category_links:
-    response = requests.head(url)
-    if response.status_code == 200:
-        print(f"URL {url} is available.")
-
-    elif response.status_code == 301:
-        print(f"URL {url} is available.")
-
-    else:
-        print(f"URL {url} is not available. Status code: {response.status_code}")
+# Print the checked URLs
+for checked_url in checked_urls:
+    print(checked_url)
 
 
-# Create a folder to save HTML files
-output_folder = (
-    "/Users/gabriele/Desktop/Master KU/Webscraping & Textual Analysis/category_pages"
-)
-os.makedirs(output_folder, exist_ok=True)
+count_limit = 1  # Set the limit for the number of recipe links to extract from each page in checked_urls
 
+recipe_links = []  # creating a List to store 
 
-for url in category_links:
-    # Send a request to the URL
-    response = requests.get(url)
+# Loop through each checked URL to extract recipe links
+for checked_url in checked_urls:
+    response = requests.get(checked_url)
+    soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Ensure the request was successful (Status code 200)
-    if response.status_code == 200 or response.status_code == 301:
-        # Extract HTML content
-        html_content = response.text
-
-        # Derive HTML filename from the URL
-        filename = os.path.join(
-            output_folder,
-            f"{url.replace('https://www.chefkoch.de/rezepte/', '').replace('/', '_')}.html",
-        )
-
-        # Save HTML file
-        with open(filename, "w", encoding="utf-8") as file:
-            file.write(html_content)
-
-        print(f"HTML from {url} was successfully saved.")
-    else:
-        print(f"Error retrieving {url}. Status code: {response.status_code}")
-
-
-# Folder where the HTML files are saved
-output_folder = (
-    "/Users/gabriele/Desktop/Master KU/Webscraping & Textual Analysis/category_pages"
-)
-
-# Get a list of HTML files in the folder
-html_files = [f for f in os.listdir(output_folder) if f.endswith(".html")]
-
-# List for recipe links
-recipe_links = []
-
-# Iterate through all HTML files
-for filename in html_files:
-    # Path to the HTML file
-    file_path = os.path.join(output_folder, filename)
-
-    # Open the HTML file and read the content
-    with open(file_path, "r", encoding="utf-8") as file:
-        html_content = file.read()
-
-    # Use Beautiful Soup to analyze the HTML content
-    soup = BeautifulSoup(html_content, "html.parser")
-
-    # Extract all links with the class 'ds-recipe-card__link ds-teaser-link' (Links to specific recipes)
-    links = soup.select(".ds-recipe-card__link.ds-teaser-link")
-
-    # Add recipe links to the list
+    # Select recipe links using BeautifulSoup
+    links = soup.select('.ds-recipe-card__link.ds-teaser-link')
+    count_rec = 0
+    # Loop through each recipe link
     for link in links:
-        recipe_links.append(link["href"])
+        
+        if count_rec >= count_limit:
+            print(f"Stopping loop. Count_rec reached {count_limit}.")
+            break
 
-print(recipe_links)
+        # Extract the href attribute from the link
+        recipe_link = link['href']
+
+        # Check if the recipe link is not already in the set
+        if recipe_link not in recipe_links:
+            # Check the response status of the recipe link
+            recipe_response = requests.get(recipe_link)
+
+            if recipe_response.status_code == 200 or recipe_response.status_code == 301:
+                recipe_links.append(recipe_link)
+                count_rec += 1
+                print(f"Recipe link {recipe_link} is available.")
+            else:
+                print(f"Recipe link {recipe_link} is not available.")
+
+        if count_rec >= count_limit:
+            break
+
+print("\nRecipe Links:")
+for recipe_link in recipe_links:
+    print(recipe_link)
 
 import pandas as pd
 import re
