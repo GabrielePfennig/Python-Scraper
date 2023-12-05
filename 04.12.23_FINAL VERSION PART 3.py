@@ -398,3 +398,56 @@ print(all_recipes_df)
 csv_path = '/Users/gabriele/Desktop/Master KU/Webscraping & Textual Analysis/Recipe_dataset.csv'
 all_recipes_df.to_csv(csv_path, index=False)
 print(f"DataFrame saved to {csv_path}")
+
+
+## Descriptive analysis__________________________________________________________
+
+# New needed variables: 
+    # - Number of pictures 
+    # - Number of words in desctiption
+    # - Number of ingredients 
+    
+# Creating new needed Lists
+picture_numbers = []
+instruction_texts = []
+instruction_lengths = []
+ingredients_counts = []
+
+# Setup
+for recipe_link in recipe_links:  # I limited to the first 2 URLs for illustration purposes
+    # You need to get the HTML code for each URL, assuming html_code is the variable holding your HTML content
+    response = requests.get(recipe_link)
+    html_code = response.text
+
+    soup = BeautifulSoup(html_code, 'html.parser')
+
+
+### Number of pictures
+
+    img_meta_div = soup.find('div', class_='img-meta')
+    
+    # Extract the total number from the text
+    img_meta_text = img_meta_div.get_text(strip=True)
+    number_of_pictures = img_meta_text.split('/')[1].strip()[:2]
+    
+    
+### Instruction
+    
+# Find the div tag with class 'ds-box' under the 'Zubereitung' section
+    instruction_div = soup.find('article', class_='ds-or-3').find('div', class_='ds-box')
+
+   
+# Extract the text content of the div tag
+    instruction_text = '\n'.join(line.strip() for line in instruction_div.get_text(separator='\n').split('\n') if line.strip()) if instruction_div else "N/A"
+
+    instruction_length = sum(len(text.split()) for text in instruction_texts)
+
+# Append values to List
+    picture_numbers.append(number_of_pictures)    
+    instruction_texts.append(instruction_text)
+    instruction_lengths.append(instruction_length)
+print(all_recipes_df.head())
+# Speichere DataFrame als CSV
+csv_path = '/Users/gabriele/Desktop/Master KU/Webscraping & Textual Analysis/Recipe_dataset.csv'
+all_recipes_df.to_csv(csv_path, index=False)
+print(f"DataFrame saved to {csv_path}")
