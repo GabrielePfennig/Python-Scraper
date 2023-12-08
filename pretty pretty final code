@@ -198,7 +198,6 @@ meat_fishs = []
 picture_numbers = []
 instruction_texts = []
 instruction_lengths = []
-recipes_categories = []
 
 for recipe_link in tqdm.tqdm(recipe_links):
     # Send a request to the recipe page
@@ -370,14 +369,6 @@ for recipe_link in tqdm.tqdm(recipe_links):
             instruction_text = '\n'.join(line.strip() for line in instruction_div.get_text(separator='\n').split('\n') if line.strip()) if instruction_div else "N/A"
             instruction_length = sum(len(text.split()) for text in instruction_texts) if instruction_text else "N/A"
             
-                        # Find all anchor tags with class "ds-tag" within the amp-carousel
-            cats = soup_recipe.find('amp-carousel', class_='ds-tags-carousel').find_all('a', class_='ds-tag')
-            
-            # Extract the text content of all tags or insert "N/A" if no categories found
-            recipe_categories = ', '.join([cat.get_text(strip=True) for cat in cats]) if cats else "N/A"
-            
-            # Now, recipe_categories is a string containing all the values separated by commas
-            print(recipe_categories)
           
 
         #  Append values to the lists
@@ -391,15 +382,10 @@ for recipe_link in tqdm.tqdm(recipe_links):
             menu_types.append(menu_type)
             meat_fishs.append(meat_fish)
             dietary_preferences.append(dietary_pref)
-            # print (ingredient,quantity)
             count, unit = parse_quantity_and_unit(quantity)
-
-            # print(f"input {quantity} output {count}, {unit}")
             quantities_list.append(count)
             units.append(unit)
             ingredients_list.append(ingredient)
-            # print ("ingredients", ingredients_values)
-            # print("quantities", quantities_values)
             calories_list.append(calories_value)
             proteins_list.append(proteins_value)
             fat_list.append(fat_value)
@@ -408,7 +394,6 @@ for recipe_link in tqdm.tqdm(recipe_links):
             picture_numbers.append(number_of_pictures)    
             instruction_texts.append(instruction_text)
             instruction_lengths.append(instruction_length)
-            recipes_categories.append(recipe_categories)
   
 
 # Create a DataFrame 
@@ -417,7 +402,6 @@ all_recipes_df = pd.DataFrame(
         "Recipe Name": recipe_names,
         "Preptime": preptimes,
         "Difficulty": difficulties,
-        "Categories": recipes_categories,
         "Rating Average_out_of_5": rating_avgs,
         "Rating Count": rating_counts,
         "Recipe Servings": servings_list,
