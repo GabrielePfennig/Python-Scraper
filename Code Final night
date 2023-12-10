@@ -20,6 +20,7 @@ restrictor_2 = 1 # Number of recipies scraped from each category page
 
 csv_path_user = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/Database_Chefkoch_user.csv'
 csv_path_analysis = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/Database_Chefkoch_analysis.csv'
+csv_path_filter = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/Database_Chefkoch_filter.csv'
 recipe_pages_path = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester'
 os.makedirs(recipe_pages_path, exist_ok=True)
 
@@ -460,7 +461,7 @@ analysis_df = user_df.drop_duplicates(subset='Recipe_Name', keep='first')
 analysis_df.to_csv(csv_path_analysis, index=False)
 print(f"DataFrame saved to {csv_path_analysis}")
 
-##_Filter setup for ingradients__________________________________________________
+##_Filter setup for ingredients (Example for User interaction)__________________________________________________
 
 #Initiate the corresponding_recipes dataframe
 corresponding_recipes=[]
@@ -473,7 +474,7 @@ Requested_ingredients_list = Requested_ingredients.split(",")
 
 #Set up a filter that selects only recipes containing the specified ingredients
 filtered_df = (
-    all_recipes_df.groupby("Recipe Name")["Ingredients"]
+    user_df.groupby("Recipe_Name")["Ingredients"]
     .apply(lambda x: all(ingredient in set(x) for ingredient in Requested_ingredients_list))
     .reset_index()
 )
@@ -481,10 +482,10 @@ filtered_df = (
 filtered_df = filtered_df[filtered_df["Ingredients"]]
 
 #Apply the filter to the dataset, and print the 10 first rows of the new dataset
-new_df = all_recipes_df.set_index("Recipe Name")
+new_df = all_recipes_df.set_index("Recipe_Name")
 corresponding_recipes = new_df.loc[filtered_df["Recipe Name"]].reset_index()
 corresponding_recipes.head(10)
 
 ##Save the filtered dataframe as a CSV file
 corresponding_recipes.to_csv(csv_path, index=False)
-print(f"Filtered dataFrame saved to {csv_path}")
+print(f"Filtered dataFrame saved to {csv_path_filter}")
