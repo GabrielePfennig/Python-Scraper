@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Dec  2 07:55:05 2023
+Created on Sun Dec 10 12:10:30 2023
 
-@author: gabriele
+@author: Sebastian Schachtner
 """
 
 import requests
+import os
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
@@ -28,7 +28,7 @@ href_values = [element['href'] for element in href_elements]
 # Iterate over pages and construct URLs
 checked_urls = []  # List to store checked URLs
 
-for href_value in href_values:
+for href_value in href_values[:5]:
     for count_cat_inner in range(1):  # You can adjust the range of pages within the cathegories as needed for a full check insert 'len(href_values)'
         cathe_base_url = 'https://www.chefkoch.de' + href_value.replace('0', '{}', 1)
         url = cathe_base_url.format(count_cat_inner)
@@ -62,10 +62,13 @@ for checked_url in checked_urls:
 
 
 count_limit = 1  # Set the limit for the number of recipe links to extract from each page in checked_urls
+recipe_links = []  # List to store recipe links
 
-recipe_links = []  # creating a List to store 
+# Create a directory to store the text files
+recipe_pages_directory = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/06_Webscraping & Textual Analysis in Python'
+os.makedirs(recipe_pages_directory, exist_ok=True)
 
-# Loop through each checked URL to extract recipe links
+# Loop through each checked URL to extract recipe links and save text content to files
 for checked_url in checked_urls:
     response = requests.get(checked_url)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -73,9 +76,9 @@ for checked_url in checked_urls:
     # Select recipe links using BeautifulSoup
     links = soup.select('.ds-recipe-card__link.ds-teaser-link')
     count_rec = 0
+
     # Loop through each recipe link
     for link in links:
-        
         if count_rec >= count_limit:
             print(f"Stopping loop. Count_rec reached {count_limit}.")
             break
@@ -91,7 +94,12 @@ for checked_url in checked_urls:
             if recipe_response.status_code == 200 or recipe_response.status_code == 301:
                 recipe_links.append(recipe_link)
                 count_rec += 1
-                print(f"Recipe link {recipe_link} is available.")
+
+                # Save text content to files
+                filename = os.path.join(recipe_pages_directory, f'recipe_{len(recipe_links)}.txt')
+                with open(filename, 'w', encoding='utf-8') as file:
+                    file.write(recipe_response.text)
+                print(f"Recipe link {recipe_link} is available. Text content saved to {filename}")
             else:
                 print(f"Recipe link {recipe_link} is not available.")
 
@@ -101,7 +109,6 @@ for checked_url in checked_urls:
 print("\nRecipe Links:")
 for recipe_link in recipe_links:
     print(recipe_link)
-
 
 
 import pandas as pd
