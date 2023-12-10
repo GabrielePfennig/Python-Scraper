@@ -1,0 +1,490 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec  5 12:36:13 2023
+
+@author: Gabriele Pfennig 
+         Sebastian Schachtner 
+         Baptiste Beau
+"""
+
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+import pandas as pd
+import re
+import tqdm
+import os
+
+restrictor_1 = 1 # Number of pages scraped within each category for a full check insert 'len(href_values)'
+restrictor_2 = 1 # Number of recipies scraped from each category page
+
+csv_path_user = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/Database_Chefkoch_user.csv'
+csv_path_analysis = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester/Database_Chefkoch_analysis.csv'
+recipe_pages_path = 'C:/Users/Sebastian Schachtner/Documents/01_Studium/02_Master/3rd Semester'
+os.makedirs(recipe_pages_path, exist_ok=True)
+
+
+
+
+##1_Scraping links to the recipe pages________________________________________#
+
+
+url = "https://www.chefkoch.de/rezepte/"
+
+# Fetch the HTML content of the website
+response = requests.get(url)
+html_content = response.text
+
+# Parse the HTML content with BeautifulSoup
+soup = BeautifulSoup(html_content, 'html.parser')
+
+# Find all 'a' tags with 'href' attribute in the specified div
+href_elements = soup.select('ul#recipe-tag-list a.sg-pill')
+
+# Extract the 'href' values
+href_values = [element['href'] for element in href_elements]
+
+# Iterate over pages and construct URLs
+checked_urls = []  # List to store checked URLs
+
+for href_value in href_values[:2]:
+    for count_cat_inner in range(restrictor_1):  # You can adjust the range of pages within the cathegories as needed 
+        cathe_base_url = 'https://www.chefkoch.de' + href_value.replace('0', '{}', 1)
+        url = cathe_base_url.format(count_cat_inner)
+        
+        response = requests.get(url, allow_redirects=False)  # Disable automatic redirection
+        redirected_url = response.headers.get('Location', '')  # Use get method to avoid KeyError
+        original_parts = urlparse(url)
+        redirected_parts = urlparse(redirected_url)
+            
+        # Compare the parts up to the third "/"
+        original_path = original_parts.path.split('/')
+        redirected_path = redirected_parts.path.split('/')
+
+        if response.status_code == 301 and original_path[:3] != redirected_path[:3]:
+            print(f"URL {url} is redirected.")
+            break
+        
+        elif response.status_code == 301:
+            print(f"URL {url} is redirected and available.")
+            
+        elif response.status_code == 200:
+            print(f"URL {url} is available.")
+            checked_urls.append(url)
+        else:
+            print(f"URL {url} is not available. Stopping.")
+            break
+
+# Print the checked URLs
+for checked_url in checked_urls:
+    print(checked_url)
+
+
+recipe_links = []  # creating a List to store 
+
+# Loop through each checked URL to extract recipe links
+for checked_url in checked_urls:
+    response = requests.get(checked_url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Select recipe links using BeautifulSoup
+    links = soup.select('.ds-recipe-card__link.ds-teaser-link')
+    count_rec = 0
+    # Loop through each recipe link
+    for link in links:
+        
+        if count_rec >= restrictor_2:
+            print(f"Stopping loop. Count_rec reached {restrictor_2}.")
+            break
+
+        # Extract the href attribute from the link
+        recipe_link = link['href']
+
+        # Check if the recipe link is not already in the set
+        if recipe_link not in recipe_links:
+            # Check the response status of the recipe link
+            recipe_response = requests.get(recipe_link)
+
+            if recipe_response.status_code == 200 or recipe_response.status_code == 301:
+                recipe_links.append(recipe_link)
+                count_rec += 1
+                print(f"Recipe link {recipe_link} is available.")
+            else:
+                print(f"Recipe link {recipe_link} is not available.")
+
+        if count_rec >= restrictor_2:
+            break
+
+print("\nRecipe Links:")
+for recipe_link in recipe_links:
+    print(recipe_link)
+
+
+
+# Loop through the recipe links and save text content to files
+for index, link in enumerate(recipe_links, start=1):
+    filename = os.path.join(recipe_pages_path, f'recipe_{index}.txt')
+    
+    response = requests.get(link)
+    
+    if response.status_code == 200:
+        with open(filename, 'w', encoding='utf-8') as file:
+            file.write(response.text)
+        print(f"Text content from {link} saved to {filename}")
+    else:
+        print(f"Failed to fetch content from {link}. Status code: {response.status_code}")
+        
+        
+##2_Scraping substantial data from the recipe pages___________________________#
+
+
+def parse_quantity_and_unit(input_string):
+    # Define a mapping for Unicode fractions to their corresponding floats
+    fraction_mapping = {
+        "¼": 0.25,
+        "½": 0.5,
+        "¾": 0.75,
+        "⅓": 1 / 3,
+        "⅔": 2 / 3,
+        "⅕": 1 / 5,
+        "⅖": 2 / 5,
+        "⅗": 3 / 5,
+        "⅘": 4 / 5,
+        "⅙": 1 / 6,
+        "⅚": 5 / 6,
+        "⅛": 1 / 8,
+        "⅜": 3 / 8,
+        "⅝": 5 / 8,
+        "⅞": 7 / 8,
+        "⅐": 1 / 9,
+        "⅑": 1 / 10,
+        "⅒": 1 / 11,
+        "⅟": 1 / 12,
+    }
+
+    # Define a regular expression pattern to match quantity and unit
+    pattern = re.compile(
+        r"(?P<whole>\d+)?\s*(?P<unicode_fraction>[\u00BC-\u00BE\u2150-\u215E])?\s*(?P<unit>[\w.\s@+-]*)"
+    )
+
+    # Use the regular expression to find matches in the input string
+    match = pattern.match(input_string)
+
+    # If there is a match, extract the whole, unicode_fraction, and unit
+    if match:
+        whole = match.group("whole")
+        unicode_fraction = match.group("unicode_fraction")
+        unit = match.group("unit")
+        # print (input_string, whole, unicode_fraction, unit)
+
+        # Calculate the total quantity
+        quantity = 0
+        if whole and unicode_fraction:
+            # If there's a whole number, convert it to float
+            quantity += float(whole) + fraction_mapping.get(unicode_fraction, 0)
+        elif unicode_fraction:
+            # If there's a Unicode fraction, use the mapping
+            quantity = fraction_mapping.get(unicode_fraction, 0)
+
+        elif whole:
+            quantity += float(whole)
+        else:
+            # If there's no fraction or whole number, set quantity to None
+            quantity = "etwas"
+
+        return quantity, unit
+    else:
+        return "etwas", None
+
+
+# Creating lists for recipe data
+recipe_names = []
+preptimes = []
+difficulties = []
+rating_avgs = []
+rating_counts = []
+servings_list = []
+quantities_list = []
+ingredients_list = []
+calories_list = []
+proteins_list = []
+fat_list = []
+carbohydrates_list = []
+recipe_links_list = []
+units = []
+menu_types = []
+dietary_preferences = []
+meat_fishs = []
+picture_numbers = []
+instruction_texts = []
+instruction_lengths = []
+
+for recipe_link in tqdm.tqdm(recipe_links):
+    # Send a request to the recipe page
+    response_recipe = requests.get(recipe_link, timeout=120)
+    soup_recipe = BeautifulSoup(response_recipe.content, "html.parser")
+    # Ensure the request was successful (Status code 200)
+    if response_recipe.status_code == 200 or response.status_code == 301:
+        # print(f"Request to {recipe_link} successful.")
+        # Extract HTML content
+        html_content_recipe = response_recipe.text
+        # Use Beautiful Soup to analyze the HTML content
+        soup_recipe = BeautifulSoup(html_content_recipe, "html.parser")
+        tags_html = soup_recipe.select(".ds-tag.bi-tags")
+        tags = [tag.decode_contents().strip().replace("\n", "") for tag in tags_html]
+        # print(tags)
+        dietary_pref = [
+            i
+            for i in [
+                "Vegetarisch",
+                "Vegan",
+                "ketogen",
+                "Paleo",
+                "Low Carb",
+                "kalorienarm",
+                "fettarm",
+                "Trennkost",
+                "Vollwert",
+            ]
+            if i in tags
+        ]
+        dietary_pref = dietary_pref[0] if len(dietary_pref) else "N/A"
+        menu_type = [
+            i
+            for i in [
+                "Dessert",
+                "Hauptspeise",
+                "Frühstück",
+                "Beilage",
+                "Salat",
+                "Suppen",
+                "Vorspeise",
+                "Getränk",
+                "Snack",
+            ]
+            if i in tags
+        ]
+        menu_type = menu_type[0] if len(menu_type) else "N/A"
+        meat_fish = [
+            i
+            for i in [
+                "Geflügel",
+                "Lamm oder Ziege",
+                "Innereien",
+                "Rind",
+                "Schwein",
+                "Wild",
+                "Krustentier oder Fisch",
+                "Fisch",
+            ]
+            if i in tags
+        ]
+        meat_fish = meat_fish[0] if len(meat_fish) else "N/A"
+        # Recipe Name
+        recipe_name = soup_recipe.find("h1")
+        recipe_name_value = recipe_name.text.strip() if recipe_name else "N/A"
+        # Preptime
+        preptime = soup_recipe.find(
+            "span", class_="recipe-preptime rds-recipe-meta__badge"
+        )
+        preptime_value_m = (
+            re.sub(r"[^\x00-\x7F]+", "", preptime.text.strip()) if preptime else "N/A"
+        )
+        preptime_value = ''.join(re.findall(r'\d+', str(preptime_value_m)))
+        
+        # Difficulty
+        difficulty = soup_recipe.find(
+            "span", class_="recipe-difficulty rds-recipe-meta__badge"
+        )
+        difficulty_value = (
+            re.sub(r"[^\x00-\x7F]+", "", difficulty.text.strip())
+            if difficulty
+            else "N/A"
+        )
+        difficulty_value = difficulty_value.strip()
+        # Rating Average
+        rating_avg = soup_recipe.find("div", class_="ds-rating-avg")
+        rating_avg_match = (
+            re.search(r"\d+\.\d+", str(rating_avg)) if rating_avg else None
+        )
+        rating_avg_value = rating_avg_match.group() if rating_avg_match else "N/A"
+        # Rating Count
+        rating_count = soup_recipe.find("div", class_="ds-rating-count")
+        rating_count_value = (
+            re.search(r"(\d+)", rating_count.text.strip()).group()
+            if rating_count
+            else "N/A"
+        )
+        # Recipe Servings
+        servings = soup_recipe.find("input", class_="ds-input")
+        servings_value = servings["value"].strip() if servings else "N/A"
+        # Quantity
+        quantity_elements = soup_recipe.find_all("td", class_="td-left")
+        quantities_values = [
+            quantity_element.text.strip() for quantity_element in quantity_elements
+        ]
+        # Ingredients
+        ingredients_elements = soup_recipe.find_all("td", class_="td-right")
+        ingredients_values = [
+            ingredient_element.text.strip()
+            for ingredient_element in ingredients_elements
+        ]
+        # Ensure there's a placeholder for recipes without a clear quantity
+        ingredients_value = (
+            "\n".join(ingredients_values) if ingredients_values else "N/A"
+        )
+        # Nutrition Values
+        nutrition_values = soup_recipe.find(
+            "div", class_="recipe-nutrition_content ds-box ds-grid"
+        )
+        nutrition_values_text = ""
+        # Initialise new column values
+        calories_value = "N/A"
+        proteins_value = "N/A"
+        fat_value = "N/A"
+        carbohydrates_value = "N/A"
+        if nutrition_values:
+            # Iterate through each element in the nutrition table
+            for item in nutrition_values.find_all("div", class_="ds-col-3"):
+                # Extract the nutrient type (z. B. kcal, Eiweiß, Fett, Kohlenhydrate)
+                nutrient_type = (
+                    item.find("h5").text.strip() if item.find("h5") else None
+                )
+                # Extract the nutritional value
+                nutrient_value = item.contents[-1].strip() if item.contents else None
+                # Assign the values to the corresponding columns
+                if nutrient_type == "kcal":
+                    calories_match = re.search(r"(\d+,\d+|\d+)", nutrient_value)
+                    calories_value = (
+                        calories_match.group(1).replace(",", ".")
+                        if calories_match
+                        else "N/A"
+                    )
+                elif nutrient_type == "Eiweiß":
+                    proteins_match = re.search(r"(\d+,\d+|\d+)", nutrient_value)
+                    proteins_value = (
+                        proteins_match.group(1).replace(",", ".")
+                        if proteins_match
+                        else "N/A"
+                    )
+                elif nutrient_type == "Fett":
+                    fat_match = re.search(r"(\d+,\d+|\d+)", nutrient_value)
+                    fat_value = (
+                        fat_match.group(1).replace(",", ".") if fat_match else "N/A"
+                    )
+                elif nutrient_type == "Kohlenhydr.":
+                    carbohydrates_match = re.search(r"(\d+,\d+|\d+)", nutrient_value)
+                    carbohydrates_value = (
+                        carbohydrates_match.group(1).replace(",", ".")
+                        if carbohydrates_match
+                        else "N/A"
+                    )
+            
+                    # Number of pictures
+            img_meta_div = soup_recipe.find('div', class_='img-meta')
+            img_meta_text = img_meta_div.get_text(strip=True)
+            number_of_pictures = img_meta_text.split('/')[1].strip()[:2] if img_meta_text else "N/A"
+                    
+                    
+               # Number of words in the instruction
+            instruction_div = soup_recipe.find('article', class_='ds-or-3').find('div', class_='ds-box') 
+            instruction_text = '\n'.join(line.strip() for line in instruction_div.get_text(separator='\n').split('\n') if line.strip()) if instruction_div else "N/A"
+            instruction_length = sum(len(text.split()) for text in instruction_texts) if instruction_text else "N/A"
+            
+          
+
+        #  Append values to the lists
+        for ingredient, quantity in zip(ingredients_values, quantities_values):
+            recipe_names.append(recipe_name_value)
+            preptimes.append(preptime_value)
+            difficulties.append(difficulty_value)
+            rating_avgs.append(rating_avg_value)
+            rating_counts.append(rating_count_value)
+            servings_list.append(servings_value)
+            menu_types.append(menu_type)
+            meat_fishs.append(meat_fish)
+            dietary_preferences.append(dietary_pref)
+            count, unit = parse_quantity_and_unit(quantity)
+            quantities_list.append(count)
+            units.append(unit)
+            ingredients_list.append(ingredient)
+            calories_list.append(calories_value)
+            proteins_list.append(proteins_value)
+            fat_list.append(fat_value)
+            carbohydrates_list.append(carbohydrates_value)
+            recipe_links_list.append(recipe_link)
+            picture_numbers.append(number_of_pictures)    
+            instruction_texts.append(instruction_text)
+            instruction_lengths.append(instruction_length)
+  
+
+# Create a DataFrame 
+user_df = pd.DataFrame(
+    {
+        "Recipe_Name": recipe_names,
+        "Preptime_in_min": preptimes,
+        "Difficulty": difficulties,
+        "Rating_Average_out_of_5": rating_avgs,
+        "Rating_Count": rating_counts,
+        "Recipe_Servings": servings_list,
+        "Quantities": quantities_list,
+        "Units": units,
+        "Ingredients": ingredients_list,
+        "Calories_in_g": calories_list,
+        "Proteins_in_g": proteins_list,
+        "Fat_in_g": fat_list,
+        "Carbohydrates_in_g": carbohydrates_list,
+        "Menu_Type": menu_types,
+        "Dietary_Preference": dietary_preferences,
+        "Meat/Fish": meat_fishs,
+        "Link": recipe_links_list,
+         "Numbers_of_pictures": picture_numbers,
+         "Words_in_instructions": instruction_lengths,
+    }
+)
+
+# Display the DataFrame
+num_rows, num_columns =user_df.shape
+print('Scraping substantial data from the recipe pages finished:')
+print(f"{num_rows} rows and {num_columns} columns created.")
+
+# Speichere DataFrame als CSV
+user_df.to_csv(csv_path_user, index=False)
+print(f"DataFrame saved to {csv_path_user}")
+
+
+# Create a new DataFrame without rows where 'Recipe_Name' values are the same
+analysis_df = user_df.drop_duplicates(subset='Recipe_Name', keep='first')
+
+# Speichere DataFrame als CSV
+analysis_df.to_csv(csv_path_analysis, index=False)
+print(f"DataFrame saved to {csv_path_analysis}")
+
+##_Filter setup for ingradients__________________________________________________
+
+#Initiate the corresponding_recipes dataframe
+corresponding_recipes=[]
+
+#Ask the user which ingredients he wants to use
+Requested_ingredients=input("Which ingredients do you have?")
+
+##Turn the Requested_ingredients string into a list
+Requested_ingredients_list = Requested_ingredients.split(",")
+
+#Set up a filter that selects only recipes containing the specified ingredients
+filtered_df = (
+    all_recipes_df.groupby("Recipe Name")["Ingredients"]
+    .apply(lambda x: all(ingredient in set(x) for ingredient in Requested_ingredients_list))
+    .reset_index()
+)
+
+filtered_df = filtered_df[filtered_df["Ingredients"]]
+
+#Apply the filter to the dataset, and print the 10 first rows of the new dataset
+new_df = all_recipes_df.set_index("Recipe Name")
+corresponding_recipes = new_df.loc[filtered_df["Recipe Name"]].reset_index()
+corresponding_recipes.head(10)
+
+##Save the filtered dataframe as a CSV file
+corresponding_recipes.to_csv(csv_path, index=False)
+print(f"Filtered dataFrame saved to {csv_path}")
