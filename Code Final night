@@ -461,7 +461,8 @@ analysis_df = user_df.drop_duplicates(subset='Recipe_Name', keep='first')
 analysis_df.to_csv(csv_path_analysis, index=False)
 print(f"DataFrame saved to {csv_path_analysis}")
 
-##_Filter setup for ingredients (Example for User interaction)_________________________________________
+
+##_Filter setup for ingredients (Example for User interaction)________________#
 
 #Initiate the corresponding_recipes dataframe
 corresponding_recipes=[]
