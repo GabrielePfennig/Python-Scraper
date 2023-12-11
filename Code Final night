@@ -48,7 +48,7 @@ href_values = [element['href'] for element in href_elements]
 # Iterate over pages and construct URLs
 checked_urls = []  # List to store checked URLs
 
-for href_value in href_values[:2]:
+for href_value in href_values:
     for count_cat_inner in range(restrictor_1):  # You can adjust the range of pages within the cathegories as needed 
         cathe_base_url = 'https://www.chefkoch.de' + href_value.replace('0', '{}', 1)
         url = cathe_base_url.format(count_cat_inner)
@@ -381,13 +381,14 @@ for recipe_link in tqdm.tqdm(recipe_links):
                         else "N/A"
                     )
             
-                 # Number of pictures
-            img_meta_div = soup.find('div', class_='some-class')
+               # Number of pictures
+                img_meta_div = soup.find('div', class_='some-class')
+                img_meta_text = "N/A"  # Default value
 
-            if img_meta_div is not None:
-                img_meta_text = img_meta_div.get_text(strip=True)
-                
-            number_of_pictures = img_meta_text.split('/')[1].strip()[:2] if img_meta_text else "N/A"
+                if img_meta_div is not None:
+                        img_meta_text = img_meta_div.get_text(strip=True)
+
+                number_of_pictures = img_meta_text.split('/')[1].strip()[:2] if img_meta_text else "N/A"
                     
                     
                     
