@@ -453,7 +453,7 @@ num_rows, num_columns =user_df.shape
 print('Scraping substantial data from the recipe pages finished:')
 print(f"{num_rows} rows and {num_columns} columns created.")
 
-# Speichere DataFrame als CSV
+# Save DataFrame as CSV
 user_df.to_csv(csv_path_user, index=False)
 print(f"DataFrame saved to {csv_path_user}")
 
@@ -461,7 +461,7 @@ print(f"DataFrame saved to {csv_path_user}")
 # Create a new DataFrame without rows where 'Recipe_Name' values are the same
 analysis_df = user_df.drop_duplicates(subset='Recipe_Name', keep='first')
 
-# Speichere DataFrame als CSV
+# Save DataFrame as CSV
 analysis_df.to_csv(csv_path_analysis, index=False)
 print(f"DataFrame saved to {csv_path_analysis}")
 
