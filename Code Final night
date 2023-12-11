@@ -381,10 +381,14 @@ for recipe_link in tqdm.tqdm(recipe_links):
                         else "N/A"
                     )
             
-                    # Number of pictures
-            img_meta_div = soup_recipe.find('div', class_='img-meta')
-            img_meta_text = img_meta_div.get_text(strip=True)
+                 # Number of pictures
+            img_meta_div = soup.find('div', class_='some-class')
+
+            if img_meta_div is not None:
+                img_meta_text = img_meta_div.get_text(strip=True)
+                
             number_of_pictures = img_meta_text.split('/')[1].strip()[:2] if img_meta_text else "N/A"
+                    
                     
                     
                # Number of words in the instruction
