@@ -479,5 +479,5 @@ corresponding_recipes = new_df.loc[filtered_df["Recipe Name"]].reset_index()
 corresponding_recipes.head(10)
 
 ##Save the filtered dataframe as a CSV file
-corresponding_recipes.to_csv(csv_path, index=False)
+corresponding_recipes.to_csv(csv_path_filter, index=False)
 print(f"Filtered dataFrame saved to {csv_path_filter}")
