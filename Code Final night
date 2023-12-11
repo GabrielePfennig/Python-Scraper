@@ -216,7 +216,6 @@ units = []
 menu_types = []
 dietary_preferences = []
 meat_fishs = []
-picture_numbers = []
 instruction_texts = []
 instruction_lengths = []
 
@@ -379,18 +378,7 @@ for recipe_link in tqdm.tqdm(recipe_links):
                         carbohydrates_match.group(1).replace(",", ".")
                         if carbohydrates_match
                         else "N/A"
-                    )
-            
-               # Number of pictures
-                img_meta_div = soup.find('div', class_='some-class')
-                img_meta_text = "N/A"  # Default value
-
-                if img_meta_div is not None:
-                        img_meta_text = img_meta_div.get_text(strip=True)
-
-                number_of_pictures = img_meta_text.split('/')[1].strip()[:2] if img_meta_text else "N/A"
-                    
-                    
+                    )      
                     
                # Number of words in the instruction
             instruction_div = soup_recipe.find('article', class_='ds-or-3').find('div', class_='ds-box') 
@@ -419,7 +407,6 @@ for recipe_link in tqdm.tqdm(recipe_links):
             fat_list.append(fat_value)
             carbohydrates_list.append(carbohydrates_value)
             recipe_links_list.append(recipe_link)
-            picture_numbers.append(number_of_pictures)    
             instruction_texts.append(instruction_text)
             instruction_lengths.append(instruction_length)
   
@@ -444,7 +431,6 @@ user_df = pd.DataFrame(
         "Dietary_Preference": dietary_preferences,
         "Meat/Fish": meat_fishs,
         "Link": recipe_links_list,
-         "Numbers_of_pictures": picture_numbers,
          "Words_in_instructions": instruction_lengths,
     }
 )
